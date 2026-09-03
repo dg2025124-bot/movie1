@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-st.set_page_config(page_title="영화 데이터 그래프 도감 2 - 분포와 관계", layout="wide")
+st.set_page_config(page_title="영화 데이터 그래프 도감 2 - 분포와 관계", page_icon="📊", layout="wide")
 
 st.title("영화 데이터 그래프 도감 2 - 분포와 관계")
 
@@ -202,9 +202,94 @@ st.markdown("**이 그래프로 알 수 있는 것:** ")
 st.divider()
 
 # ------------------------------------------------------------
-# 7. 제작 국가 -> 장르 - 선버스트 (칸 크기: 영화 편수)
+# 7. 장르별 총 관객수 합계 (수익 대체 지표) - 막대그래프
 # ------------------------------------------------------------
-st.header("7. 제작 국가에서 장르로 (선버스트)")
+st.header("7. 장르별 총 관객수 합계 (수익 상위 장르)")
+st.caption("데이터에 실제 매출액(원화)이 없어, 총 관객수(total_audi) 합계를 수익의 대체 지표로 사용했습니다.")
+
+genre_revenue = (
+    df.groupby("genre")["total_audi"]
+    .sum()
+    .reset_index()
+    .sort_values("total_audi", ascending=True)
+)
+
+fig_genre_revenue = px.bar(
+    genre_revenue,
+    x="total_audi",
+    y="genre",
+    orientation="h",
+)
+fig_genre_revenue.update_traces(
+    hovertemplate="장르: %{y}<br>총 관객수 합계: %{x:,.0f}명<extra></extra>"
+)
+fig_genre_revenue.update_layout(
+    xaxis_title="총 관객수 합계",
+    yaxis_title="장르",
+    yaxis=dict(categoryorder="total ascending"),
+    margin=dict(t=30, b=30, l=0, r=0),
+)
+
+st.plotly_chart(fig_genre_revenue, use_container_width=True)
+
+top_genre_row = genre_revenue.sort_values("total_audi", ascending=False).iloc[0]
+
+st.markdown(
+    f"**이 그래프로 알 수 있는 것:** 총 관객수 기준으로 가장 많은 관객을 모은 장르는 "
+    f"**{top_genre_row['genre']}**(총 {top_genre_row['total_audi']:,.0f}명)입니다."
+)
+
+st.divider()
+
+# ------------------------------------------------------------
+# 8. 애니메이션 장르 - 가장 인기 있는 영화
+# ------------------------------------------------------------
+st.header("8. 애니메이션 장르에서 가장 인기 있는 영화")
+
+anim_df = df[df["genre"].astype(str).str.contains("애니", na=False)].copy()
+
+if anim_df.empty:
+    st.warning("데이터에서 애니메이션 장르 영화를 찾을 수 없습니다.")
+else:
+    anim_df = anim_df.sort_values("total_audi", ascending=True)
+
+    # 가장 인기 있는(총 관객이 가장 많은) 영화를 다른 색으로 강조
+    top_anim_movie = anim_df.loc[anim_df["total_audi"].idxmax(), "movieNm"]
+    anim_df["구분"] = anim_df["movieNm"].apply(
+        lambda x: "1위" if x == top_anim_movie else "그 외"
+    )
+
+    fig_anim = px.bar(
+        anim_df,
+        x="total_audi",
+        y="movieNm",
+        orientation="h",
+        color="구분",
+        color_discrete_map={"1위": "#e63946", "그 외": "#a8c8f0"},
+    )
+    fig_anim.update_traces(
+        hovertemplate="%{y}<br>총 관객: %{x:,.0f}명<extra></extra>"
+    )
+    fig_anim.update_layout(
+        xaxis_title="총 관객수",
+        yaxis_title="영화명",
+        yaxis=dict(categoryorder="total ascending"),
+        legend_title_text="",
+        margin=dict(t=30, b=30, l=0, r=0),
+    )
+
+    st.plotly_chart(fig_anim, use_container_width=True)
+
+    top_anim_row = anim_df.loc[anim_df["total_audi"].idxmax()]
+    st.markdown(
+        f"**이 그래프로 알 수 있는 것:** 애니메이션 장르 중 가장 인기 있었던 영화는 "
+        f"**{top_anim_row['movieNm']}**(총 관객 {top_anim_row['total_audi']:,.0f}명)입니다."
+    )
+
+st.divider()
+
+# ------------------------------------------------------------
+st.header("9. 제작 국가에서 장르로 (선버스트)")
 
 fig_sunburst = px.sunburst(
     df,
